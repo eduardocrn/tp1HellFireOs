@@ -273,7 +273,57 @@ int32_t sched_rma(void)
 		return id;
 	}else{
 		/* no RT task to run */
-		krnl_task = &krnl_tcb[0];
+		kr * @brief Real time (RT) scheduler.nl_task = &krnl_tcb[0];
 		return 0;
 	}
 }
+
+/**
+ * Aperiodic scheduler
+ */
+int32_t aperiodic_sched(void) {
+
+	int32_t k;
+	struct tcb_entry *task;
+
+	task = hf_queue_remhead(krnl_ap_queue);
+
+	k = hf_queue_count(krnl_ap_queue);
+	if (k == 0)
+		return 0;
+
+	return task->id;
+}
+
+void polling_server() {
+	uint16_t id;
+	volatile int32_t status;
+
+	while (1) {
+		id = aperiodic_sched();
+
+		// TODO: chamar mais alguma coisa?
+		if (id == 0)
+			return;
+
+		status = _di();
+
+		krnl_task = &krnl_tcb[id];
+
+		rc = setjmp(krnl_task->task_context);
+		if (rc){
+			_ei(status);
+			continue;
+		}
+
+		if (krnl_task->state == TASK_RUNNING)
+			krnl_task->state = TASK_READY;
+		if (krnl_task->pstack[0] != STACK_MAGIC)
+			panic(PANIC_STACK_OVERFLOW);
+		
+		_restoreexec(krnl_task->task_context, status, krnl_current_task);
+		panic(PANIC_UNKNOWN);
+		
+	}
+}
+
