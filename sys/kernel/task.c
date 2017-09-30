@@ -272,7 +272,7 @@ int32_t hf_spawn(void (*task)(), uint16_t period, uint16_t capacity, uint16_t de
 		}else if (capacity == 0 && deadline == 0){
 			if (hf_queue_addtail(krnl_run_queue, krnl_task)) panic(PANIC_CANT_PLACE_RUN);
 		}else if (capacity > 0 && deadline == 0) {
-			if(hf_queue_addtail(krnl_ap_queue, krnl_task)) panic(PANIC_CANT_PLACE_RUN);
+			if(hf_queue_addtail(krnl_ap_queue, krnl_task)) panic(PANIC_CANT_PLACE_RT);
 		}
 	}else{
 		krnl_task->ptask = 0;
