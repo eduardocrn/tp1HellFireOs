@@ -21,6 +21,7 @@
 #include <kernel.h>
 #include <panic.h>
 #include <scheduler.h>
+#include <task.h>
 
 static void process_delay_queue(void)
 {
@@ -273,7 +274,7 @@ int32_t sched_rma(void)
 		return id;
 	}else{
 		/* no RT task to run */
-		kr * @brief Real time (RT) scheduler.nl_task = &krnl_tcb[0];
+		// kr * @brief Real time (RT) scheduler.nl_task = &krnl_tcb[0];
 		return 0;
 	}
 }
@@ -294,48 +295,3 @@ int16_t aperiodic_sched(void) {
 
 	return task->id;
 }
-
-void polling_server() {
-	uint16_t id;
-	volatile int32_t status;
-
-	while (1) {
-
-		id = aperiodic_sched();
-
-		if (id == 0) {
-			hf_yield();
-			return;
-		}
-
-		krnl_task = &krnl_tcb[id];
-
-		if (krnl_task->rtjobs > 0) {
-
-			krnl_task->rtjobs--;
-
-			status = _di();
-
-			krnl_task = &krnl_tcb[id];
-
-			rc = setjmp(krnl_task->task_context);
-			if (rc){
-				_ei(status);
-				continue;
-			}
-
-			if (krnl_task->state == TASK_RUNNING)
-				krnl_task->state = TASK_READY;
-			if (krnl_task->pstack[0] != STACK_MAGIC)
-				panic(PANIC_STACK_OVERFLOW);
-			
-			_restoreexec(krnl_task->task_context, status, krnl_current_task);
-			panic(PANIC_UNKNOWN);
-		} else {
-			hf_queue_remhead(krnl_ap_queue);
-			hf_kill(id);
-		}
-		
-	}
-}
-
