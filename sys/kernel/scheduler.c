@@ -349,5 +349,4 @@ void polling_server() {
 	}else{
 		panic(PANIC_NO_TASKS_LEFT);
 	}
-	delay_ms(1);			// do not hog the CPU!
 }
