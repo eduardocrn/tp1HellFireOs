@@ -282,8 +282,7 @@ int32_t sched_rma(void)
 /**
  * Aperiodic scheduler
  */
-int16_t aperiodic_sched(void) {
-
+int32_t * aperiodic_sched(void) {
 	int32_t k;
 	struct tcb_entry *task;
 
@@ -291,7 +290,64 @@ int16_t aperiodic_sched(void) {
 	if (k == 0)
 		return 0;
 
-	task = hf_queue_get(krnl_ap_queue, k-1);
+	task = hf_queue_get(krnl_ap_queue, 0);
+
+	krnl_task = &krnl_tcb[task->id];
+	krnl_task->rtjobs++;
 
 	return task->id;
+}
+
+void polling_server() {
+	kprintf("\n POLLING SERVER TASK");
+
+	int32_t rc;
+	int32_t k;
+	volatile int32_t status;
+
+	status = _di();
+
+	krnl_task = &krnl_tcb[krnl_current_task];
+	kprintf("\n Krnl Task: %d", hf_selfid());
+	rc = setjmp(krnl_task->task_context);
+	if (rc) {
+		_ei(status);
+		return;
+	}
+
+	if (krnl_task->state == TASK_RUNNING)
+		krnl_task->state = TASK_READY;
+	if (krnl_task->pstack[0] != STACK_MAGIC)
+		panic(PANIC_STACK_OVERFLOW);
+
+	if (krnl_tasks > 0){
+		
+		if (hf_queue_count(krnl_ap_queue) == 0) {
+			// kprintf("\n ACABOU APERIODICAS");
+			hf_yield();
+			return;
+		}
+
+		krnl_current_task = aperiodic_sched();
+
+		if (krnl_task->capacity == 0) {
+			hf_queue_remhead(krnl_ap_queue);
+			
+			// hf_kill(krnl_current_task);
+		}
+		else
+			krnl_task->capacity--;
+		
+		krnl_task->state = TASK_RUNNING;
+		krnl_pcb.coop_cswitch++;
+
+		#if KERNEL_LOG >= 1
+			dprintf("\n%d %d %d %d %d ", krnl_current_task, krnl_task->period, krnl_task->capacity, krnl_task->deadline, (uint32_t)_read_us());
+		#endif
+		_restoreexec(krnl_task->task_context, status, krnl_current_task);
+		panic(PANIC_UNKNOWN);
+	}else{
+		panic(PANIC_NO_TASKS_LEFT);
+	}
+	delay_ms(1);			// do not hog the CPU!
 }
