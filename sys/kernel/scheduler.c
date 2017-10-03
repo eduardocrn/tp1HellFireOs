@@ -303,8 +303,6 @@ void polling_server(void) {
 
 		krnl_task = &krnl_tcb[krnl_current_task];
 
-		kprintf("\n Krnl Task: %d", hf_selfid());
-
 		rc = setjmp(krnl_task->task_context);
 
 		if (rc) {
@@ -323,10 +321,10 @@ void polling_server(void) {
 
 				krnl_current_task = aperiodic_sched();
 
-				if (krnl_task->capacity == 0) {
-					// hf_kill(krnl_task->id);
+				if (krnl_task->capacity_rem == 0) {
+					hf_kill(krnl_task->id);
 				} else {
-					krnl_task->capacity--;
+					krnl_task->capacity_rem--;
 				}
 
 				krnl_task->state = TASK_RUNNING;
