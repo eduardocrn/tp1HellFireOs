@@ -454,6 +454,14 @@ int32_t hf_kill(uint16_t id)
 	krnl_task->state = TASK_IDLE;
 	krnl_tasks--;
 
+	// if (period > 0 && capacity > 0 && deadline > 0){
+	// 	if (hf_queue_addtail(krnl_rt_queue, krnl_task)) panic(PANIC_CANT_PLACE_RT);
+	// }else if (period == 0 && capacity == 0 && deadline == 0){
+	// 	if (hf_queue_addtail(krnl_run_queue, krnl_task)) panic(PANIC_CANT_PLACE_RUN);
+	// }else if (period == 0 && capacity > 0 && deadline == 0) {
+	// 	if(hf_queue_addtail(krnl_ap_queue, krnl_task)) panic(PANIC_CANT_PLACE_RT);
+	// }
+
 	if (krnl_task->period){
 		k = hf_queue_count(krnl_rt_queue);
 		for (i = 0; i < k; i++)

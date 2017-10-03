@@ -12,35 +12,18 @@ void task(void){
 	}
 }
 
-void aperiodic(void) {
-	uint32_t r, id;
-
-	
-	id = hf_selfid();
-
-	printf("\n APERIODIC task ID: %d", id);
-
-	while (1) {
-		r = random();
-		if (r >= 50 && r <= 500)
-			break;
-	}
-
-	delay_ms(r);
-}
-
 void aperiodic_task_create(void) {
 
-	int32_t i, id;
+	int32_t jobs, i, id;
 
 	id = hf_selfid();
 
-	printf("\n%s (%d)[%d][%d]", hf_selfname(), id, hf_jobs(id), hf_dlm(id));
-
-	for (i = 0; i < 3; i++) {
-		hf_spawn(aperiodic, 0, 1, 0, "task aperiodic", 2048);
+	for(;;) {
+		jobs = hf_jobs(id);
+		printf("\n%s (%d)[%d][%d]", hf_selfname(), id, hf_jobs(id), hf_dlm(id));
+		hf_spawn(task, 0, 1, 0, "APERIODIC", 2048);
+		delay_ms(random() % 100 + 50);
 	}
-
 }
 
 void app_main(void){
@@ -50,5 +33,5 @@ void app_main(void){
 
 	hf_spawn(polling_server, 3, 1, 3, "polling server", 1024);
 
-	hf_spawn(aperiodic_task_create, 0, 0, 0, "task create aperiodic", 1024);
+	hf_spawn(aperiodic_task_create, 0, 0, 0, "create aperiodic", 1024);
 }

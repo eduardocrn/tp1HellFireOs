@@ -283,70 +283,67 @@ int32_t sched_rma(void)
  * Aperiodic scheduler
  */
 int32_t * aperiodic_sched(void) {
-	int32_t k;
-	struct tcb_entry *task;
 
-	k = hf_queue_count(krnl_ap_queue);
-	if (k == 0)
-		return 0;
+	krnl_task = hf_queue_remhead(krnl_ap_queue);
 
-	task = hf_queue_get(krnl_ap_queue, 0);
+	hf_queue_addtail(krnl_ap_queue, krnl_task);
 
-	krnl_task = &krnl_tcb[task->id];
-	krnl_task->rtjobs++;
-
-	return task->id;
+	return krnl_task->id;
 }
 
-void polling_server() {
+void polling_server(void) {
 	kprintf("\n POLLING SERVER TASK");
 
 	int32_t rc;
 	int32_t k;
 	volatile int32_t status;
 
-	status = _di();
+	for (;;) {
+		status = _di();
 
-	krnl_task = &krnl_tcb[krnl_current_task];
-	kprintf("\n Krnl Task: %d", hf_selfid());
-	rc = setjmp(krnl_task->task_context);
-	if (rc) {
-		_ei(status);
-		return;
-	}
+		krnl_task = &krnl_tcb[krnl_current_task];
 
-	if (krnl_task->state == TASK_RUNNING)
-		krnl_task->state = TASK_READY;
-	if (krnl_task->pstack[0] != STACK_MAGIC)
-		panic(PANIC_STACK_OVERFLOW);
+		kprintf("\n Krnl Task: %d", hf_selfid());
 
-	if (krnl_tasks > 0){
-		
-		if (hf_queue_count(krnl_ap_queue) == 0) {
-			// kprintf("\n ACABOU APERIODICAS");
-			hf_yield();
+		rc = setjmp(krnl_task->task_context);
+
+		if (rc) {
+			_ei(status);
 			return;
 		}
 
-		krnl_current_task = aperiodic_sched();
+		if (krnl_task->state == TASK_RUNNING)
+			krnl_task->state = TASK_READY;
+		if (krnl_task->pstack[0] != STACK_MAGIC)
+			panic(PANIC_STACK_OVERFLOW);
 
-		if (krnl_task->capacity == 0) {
-			hf_queue_remhead(krnl_ap_queue);
-			
-			// hf_kill(krnl_current_task);
+		if (krnl_tasks > 0){
+
+			if (hf_queue_count(krnl_ap_queue) > 0) {
+
+				krnl_current_task = aperiodic_sched();
+
+				if (krnl_task->capacity == 0) {
+					// hf_kill(krnl_task->id);
+				} else {
+					krnl_task->capacity--;
+				}
+
+				krnl_task->state = TASK_RUNNING;
+
+				krnl_pcb.preempt_cswitch++;
+
+				#if KERNEL_LOG >= 1
+					dprintf("\n%d %d %d %d %d ", krnl_current_task, krnl_task->period, krnl_task->capacity, krnl_task->deadline, (uint32_t)_read_us());
+				#endif
+				_restoreexec(krnl_task->task_context, 1, krnl_current_task);
+				panic(PANIC_UNKNOWN);
+			}
+			else {
+				_ei(status);
+				hf_yield();
+			}
 		}
-		else
-			krnl_task->capacity--;
-		
-		krnl_task->state = TASK_RUNNING;
-		krnl_pcb.coop_cswitch++;
-
-		#if KERNEL_LOG >= 1
-			dprintf("\n%d %d %d %d %d ", krnl_current_task, krnl_task->period, krnl_task->capacity, krnl_task->deadline, (uint32_t)_read_us());
-		#endif
-		_restoreexec(krnl_task->task_context, status, krnl_current_task);
-		panic(PANIC_UNKNOWN);
-	}else{
-		panic(PANIC_NO_TASKS_LEFT);
 	}
+	
 }
