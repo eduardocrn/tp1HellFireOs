@@ -291,6 +291,9 @@ int32_t * aperiodic_sched(void) {
 	return krnl_task->id;
 }
 
+/**
+ * Polling server for aperiodic tasks
+ */
 void polling_server(void) {
 	kprintf("\n POLLING SERVER TASK");
 
